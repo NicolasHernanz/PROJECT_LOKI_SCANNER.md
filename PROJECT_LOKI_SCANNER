@@ -1,0 +1,37 @@
+# 🛡️ USB Incident Response Toolkit (Loki Automation)
+
+![Batch Script](https://img.shields.io/badge/Language-Batch%20Script-blue) ![Tools](https://img.shields.io/badge/Tools-Loki%20%7C%20YARA-red) ![Category](https://img.shields.io/badge/Category-Blue%20Team%20%2F%20Forensics-green)
+
+## 📋 Descripción del Proyecto
+Desarrollo de una solución portátil de **Respuesta a Incidentes (IR)** para entornos Windows. El objetivo principal fue crear una herramienta "Plug & Play" capaz de realizar un triaje forense rápido en equipos sospechosos de compromiso, sin necesidad de instalación previa y evadiendo la necesidad de red.
+
+Utilizando **Loki (IOC Scanner)** como motor base, desarrollé un script de automatización (`.bat`) que gestiona la ejecución, optimiza los tiempos de escaneo y filtra los resultados para aislar amenazas reales del "ruido" forense.
+
+## ⚙️ Arquitectura de la Solución
+
+### 1. Automatización y Optimización
+En lugar de ejecutar la herramienta manualmente, creé un script en **Batch** que:
+* **Autodetecta la unidad:** Usa variables de entorno (`%~dp0`) para funcionar en cualquier letra de unidad (D:, E:, F:) automáticamente.
+* **Escaneo Quirúrgico:** Implementé flags (`-p`) para escanear únicamente "Zonas Calientes" (*Hot Zones*) como `C:\Windows`, `C:\Users` y `C:\ProgramData`, reduciendo el tiempo de análisis de 2 horas a 15 minutos.
+* **Filtrado de Logs:** Automatización del post-procesado usando `findstr` para separar alertas críticas (`WARNING`, `ALERT`) de los avisos informativos (`NOTICE`).
+
+### 2. Código Destacado (Snippet)
+*Lógica utilizada para el filtrado de amenazas en tiempo real:*
+
+```batch
+:: 1. Ejecución del escáner con parámetros de intensidad y rutas críticas
+echo [>] Iniciando escaneo forense en memoria y disco...
+loki.exe -p C:\Windows -p C:\Users -p C:\ProgramData --intense -l "%LOG_SUCIO%"
+
+:: 2. Post-procesado: Extracción de IOCs confirmados
+:: Ignoramos el nivel 'NOTICE' para evitar falsos positivos leves
+findstr /C:"ALERT" /C:"WARNING" /C:"MATCH" "%LOG_SUCIO%" > "%LOG_LIMPIO%"
+
+:: 3. Validación de resultados y alerta visual
+for %%A in ("%LOG_LIMPIO%") do if %%~zA==0 (
+    color 2F
+    echo [OK] Sistema Limpio. No se hallaron indicadores de compromiso.
+) else (
+    color 4F
+    echo [PELIGRO] Amenazas detectadas. Revise el reporte filtrado inmediatamente.
+)
